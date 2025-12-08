@@ -4,14 +4,14 @@ set -e
 mongosh <<EOF
 use admin
 db.auth(
-  process.env.MONGO_INITDB_ROOT_USERNAME,
-  process.env.MONGO_INITDB_ROOT_PASSWORD
+  "root",
+  "your_root_password"
 )
 
 use unifi
 db.createUser({
-  user: process.env.MONGO_USER,
-  pwd: process.env.MONGO_PASS,
+  user: "unifi",
+  pwd: "your_unifi_password",
   roles: [
     { role: "dbOwner", db: "unifi" }
   ]
