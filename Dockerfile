@@ -1,20 +1,100 @@
-# Use the official MongoDB image as base
-FROM mongo:8.2.2-noble
+# Use Ubuntu as the base image
+FROM ubuntu:22.04
+
+# Set environment variables to avoid interactive prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
 
 # Set working directory
-WORKDIR /app
+WORKDIR /root
 
-# Copy the init-mongo script to the initialization directory
-COPY init-mongo.sh /docker-entrypoint-initdb.d/init-mongo.sh
+# Update system and install basic utilities
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y \
+    wget \
+    curl \
+    gnupg \
+    lsb-release \
+    ca-certificates \
+    apt-transport-https \
+    systemd \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables with default values
-ENV MONGO_INITDB_ROOT_USERNAME=root
-ENV MONGO_INITDB_ROOT_PASSWORD=rootpassword
-ENV MONGO_USER=unifi
-ENV MONGO_PASS=unifipassword
+# Install OpenJDK 11 (required for UniFi Controller)
+RUN apt-get update && \
+    apt-get install -y openjdk-11-jre-headless && \
+    rm -rf /var/lib/apt/lists/*
 
-# Expose MongoDB port
-EXPOSE 27017
+# Install MongoDB
+# Import MongoDB public key
+RUN wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | apt-key add -
 
-# Default command to start MongoDB with authentication
-CMD ["mongod", "--auth", "--bind_ip_all"]
+# Add MongoDB repository
+RUN echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+
+# Install MongoDB
+RUN apt-get update && \
+    apt-get install -y mongodb-org && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create MongoDB data directory
+RUN mkdir -p /data/db
+
+# Create MongoDB init script
+RUN cat > /tmp/init-mongo.js << 'EOF'
+use admin
+db.createUser({
+  user: "unifi",
+  pwd: "unifi_password",
+  roles: [
+    { role: "dbOwner", db: "unifi" }
+  ]
+})
+
+use unifi
+db.createCollection("init")
+EOF
+
+# Add UniFi repository
+RUN echo 'deb http://www.ui.com/downloads/unifi/debian stable ubiquiti' | tee /etc/apt/sources.list.d/100-ubnt.list && \
+    wget -O /etc/apt/trusted.gpg.d/ubiquiti.asc https://dl.ui.com/unifi/unifi-repo.gpg
+
+# Install UniFi Controller
+RUN apt-get update && \
+    apt-get install -y unifi && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configure UniFi to use local MongoDB
+RUN sed -i 's|db.mongo.local=false|db.mongo.local=true|g' /etc/unifi/system.properties && \
+    sed -i 's|db.mongo.url=|db.mongo.url=mongodb://unifi:unifi_password@localhost:27017/unifi|g' /etc/unifi/system.properties
+
+# Create startup script
+RUN cat > /start.sh << 'EOF'
+#!/bin/bash
+set -e
+
+# Start MongoDB in the background
+mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db
+
+# Wait for MongoDB to start
+sleep 10
+
+# Initialize MongoDB with UniFi user
+mongo admin /tmp/init-mongo.js
+
+# Start UniFi Controller
+/usr/lib/unifi/bin/unifi.init start
+
+# Keep the container running
+tail -f /dev/null
+EOF
+
+# Make startup script executable
+RUN chmod +x /start.sh
+
+# Expose UniFi Controller ports
+EXPOSE 8443 3478/udp 10001/udp 8080 8880 8843
+
+# Start the services
+CMD ["/start.sh"]
