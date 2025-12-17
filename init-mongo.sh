@@ -1,19 +1,14 @@
 #!/bin/bash
 set -e
 
-mongosh <<EOF
-use admin
-db.auth(
-  "root",
-  "your_root_password"
-)
-
-use unifi
-db.createUser({
+mongosh admin <<EOF
+db.getSiblingDB("admin").createUser({
   user: "unifi",
-  pwd: "your_unifi_password",
+  pwd: "unifi_password",
   roles: [
     { role: "dbOwner", db: "unifi" }
   ]
-})
+});
+
+db.getSiblingDB("unifi").createCollection("init");
 EOF

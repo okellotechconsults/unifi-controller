@@ -41,18 +41,9 @@ RUN apt-get update && \
 # Create MongoDB data directory
 RUN mkdir -p /data/db
 
-# Create MongoDB init script
-RUN cat > /tmp/init-mongo.js << 'EOF'
-db.getSiblingDB("admin").createUser({
-  user: "unifi",
-  pwd: "unifi_password",
-  roles: [
-    { role: "dbOwner", db: "unifi" }
-  ]
-});
-
-db.getSiblingDB("unifi").createCollection("init");
-EOF
+# Copy MongoDB init script
+COPY init-mongo.sh /tmp/init-mongo.sh
+RUN chmod +x /tmp/init-mongo.sh
 
 # Add UniFi repository
 RUN echo 'deb http://www.ui.com/downloads/unifi/debian stable ubiquiti' | tee /etc/apt/sources.list.d/100-ubnt.list && \
@@ -79,7 +70,7 @@ mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db
 sleep 10
 
 # Initialize MongoDB with UniFi user
-mongosh admin /tmp/init-mongo.js
+/tmp/init-mongo.sh
 
 # Start UniFi Controller
 /usr/lib/unifi/bin/unifi.init start
