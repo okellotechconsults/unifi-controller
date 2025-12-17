@@ -58,28 +58,8 @@ RUN apt-get update && \
 RUN sed -i 's|db.mongo.local=false|db.mongo.local=true|g' /etc/unifi/system.properties && \
     sed -i 's|db.mongo.url=|db.mongo.url=mongodb://unifi:unifi_password@localhost:27017/unifi|g' /etc/unifi/system.properties
 
-# Create startup script
-RUN cat > /start.sh << 'EOF'
-#!/bin/bash
-set -e
-
-# Start MongoDB in the background
-mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db
-
-# Wait for MongoDB to start
-sleep 10
-
-# Initialize MongoDB with UniFi user
-/tmp/init-mongo.sh
-
-# Start UniFi Controller
-/usr/lib/unifi/bin/unifi.init start
-
-# Keep the container running
-tail -f /dev/null
-EOF
-
-# Make startup script executable
+# Copy startup script
+COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
 # Expose UniFi Controller ports
