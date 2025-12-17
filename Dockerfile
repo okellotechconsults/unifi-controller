@@ -49,9 +49,9 @@ db.getSiblingDB("admin").createUser({
   roles: [
     { role: "dbOwner", db: "unifi" }
   ]
-})
+});
 
-db.getSiblingDB("unifi").createCollection("init")
+db.getSiblingDB("unifi").createCollection("init");
 EOF
 
 # Add UniFi repository
