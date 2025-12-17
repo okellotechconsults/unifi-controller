@@ -47,10 +47,11 @@ RUN chmod +x /tmp/init-mongo.sh
 
 # Add UniFi repository
 RUN echo 'deb http://www.ui.com/downloads/unifi/debian stable ubiquiti' | tee /etc/apt/sources.list.d/100-ubnt.list && \
-    wget -O /etc/apt/trusted.gpg.d/ubiquiti.asc https://dl.ui.com/unifi/unifi-repo.gpg
+    wget -O /etc/apt/trusted.gpg.d/ubiquiti.asc https://dl.ui.com/unifi/unifi-repo.gpg && \
+    sleep 3
 
 # Install UniFi Controller
-RUN apt-get update
+RUN apt-get update || (echo "Update failed, retrying..." && sleep 5 && apt-get update)
 RUN apt-get install -y unifi
 RUN rm -rf /var/lib/apt/lists/*
 
