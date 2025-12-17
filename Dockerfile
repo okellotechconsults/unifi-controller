@@ -50,9 +50,9 @@ RUN echo 'deb http://www.ui.com/downloads/unifi/debian stable ubiquiti' | tee /e
     wget -O /etc/apt/trusted.gpg.d/ubiquiti.asc https://dl.ui.com/unifi/unifi-repo.gpg
 
 # Install UniFi Controller
-RUN apt-get update && \
-    apt-get install -y unifi && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update
+RUN apt-get install -y unifi
+RUN rm -rf /var/lib/apt/lists/*
 
 # Configure UniFi to use local MongoDB
 RUN sed -i 's|db.mongo.local=false|db.mongo.local=true|g' /etc/unifi/system.properties && \
