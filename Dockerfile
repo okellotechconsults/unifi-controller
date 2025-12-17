@@ -43,8 +43,7 @@ RUN mkdir -p /data/db
 
 # Create MongoDB init script
 RUN cat > /tmp/init-mongo.js << 'EOF'
-use admin
-db.createUser({
+db.getSiblingDB("admin").createUser({
   user: "unifi",
   pwd: "unifi_password",
   roles: [
@@ -52,8 +51,7 @@ db.createUser({
   ]
 })
 
-use unifi
-db.createCollection("init")
+db.getSiblingDB("unifi").createCollection("init")
 EOF
 
 # Add UniFi repository
@@ -81,7 +79,7 @@ mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db
 sleep 10
 
 # Initialize MongoDB with UniFi user
-mongo admin /tmp/init-mongo.js
+mongosh admin /tmp/init-mongo.js
 
 # Start UniFi Controller
 /usr/lib/unifi/bin/unifi.init start
